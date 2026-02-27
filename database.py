@@ -79,7 +79,7 @@ def initialize_database():
         )
     """)
     
-    #Insert default admin if not exists
+    #Inserting default admin if it does not exists
     cursor.execute("SELECT * FROM admin WHERE username = ?", ("admin",))
     existing_admin = cursor.fetchone()
 
