@@ -78,6 +78,24 @@ def initialize_database():
             FOREIGN KEY(drive_id) REFERENCES placement_drive(id)
         )
     """)
+
+    #Job position table(if student gets offer from company, so to have a record)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS job_position (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            company_id INTEGER NOT NULL,
+            placement_drive_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            employment_type TEXT NOT NULL,
+            offered_salary INTEGER,
+            offered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (student_id) REFERENCES student(id),
+            FOREIGN KEY (company_id) REFERENCES company(id),
+            FOREIGN KEY (placement_drive_id) REFERENCES placement_drive(id)
+        )
+    """)
     
     #Inserting default admin if it does not exists
     cursor.execute("SELECT * FROM admin WHERE username = ?", ("admin",))
