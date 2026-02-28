@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="text-center mb-5">
+    <h1>Welcome to Placement Portal</h1>
+    <p class="lead">
+        A centralized platform connecting Students and Companies
+        for campus recruitment drives.
+    </p>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow p-4">
+            <h4>For Students</h4>
+            <p>
+                • Register your profile<br>
+                • Upload resume<br>
+                • Apply for placement drives<br>
+                • Track application status
+            </p>
+            <a href="/student/login" class="btn btn-primary">Login</a>
+            <a href="/student/register" class="btn btn-outline-primary">Register</a>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow p-4">
+            <h4>For Companies</h4>
+            <p>
+                • Register your organization<br>
+                • Wait for Admin Approval<br>
+                • Post placement drives<br>
+                • Shortlist candidates
+            </p>
+            <a href="/company/login" class="btn btn-warning">Login</a>
+            <a href="/company/register" class="btn btn-outline-warning">Register</a>
+        </div>
+    </div>
+</div>
+
+<div class="mt-5">
+    <h3>How It Works</h3>
+    <ol>
+        <li>Student registers and logs in.</li>
+        <li>Company registers and waits for approval.</li>
+        <li>Admin approves company.</li>
+        <li>Company posts placement drive.</li>
+        <li>Students apply.</li>
+    </ol>
+</div>
+
+{% endblock %}
