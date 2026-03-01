@@ -1,7 +1,87 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>Admin Dashboard</h2>
-<p>Welcome {{ session['username'] }}</p>
+<h2 class="mb-4">Admin Dashboard</h2>
+
+<div class="row">
+
+    <div class="col-md-3">
+        <div class="card text-center shadow p-3">
+            <h4>{{ total_students }}</h4>
+            <p>Active Students</p>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-center shadow p-3">
+            <h4>{{ blacklisted_students }}</h4>
+            <p>Blacklisted Students</p>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-center shadow p-3">
+            <h4>{{ total_companies }}</h4>
+            <p>Active Companies</p>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-center shadow p-3">
+            <h4>{{ blacklisted_companies }}</h4>
+            <p>Blacklisted Companies</p>
+        </div>
+    </div>
+
+</div>
+
+<br>
+
+<div class="row">
+
+    <div class="col-md-6">
+        <div class="card text-center shadow p-3">
+            <h4>{{ total_drives }}</h4>
+            <p>Placement Drives</p>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card text-center shadow p-3">
+            <h4>{{ total_applications }}</h4>
+            <p>Applications</p>
+        </div>
+    </div>
+
+</div>
+
+<hr class="my-5">
+
+<div class="row">
+
+    <div class="col-md-4">
+        <a href="/admin/companies" class="btn btn-warning w-100 mb-3">
+            Manage Companies
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="/admin/students" class="btn btn-primary w-100 mb-3">
+            Manage Students
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="/admin/drives" class="btn btn-success w-100 mb-3">
+            Manage Placement Drives
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="/admin/applications" class="btn btn-dark">
+            Manage Job Applications
+        </a>
+    </div>
+</div>
 
 {% endblock %}

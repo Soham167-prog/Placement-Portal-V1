@@ -1,7 +1,8 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, url_for
 from database import initialize_database, get_connection
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+import sqlite3
 
 app = Flask(__name__)
 app.secret_key = "super_secret_key"
@@ -161,6 +162,7 @@ def admin_login():
             session['user_id'] = admin['id']
             session['role'] = 'admin'
             session['username'] = admin['username']
+            session['admin'] = True 
             return redirect('/admin/dashboard')
 
         return "Invalid Admin Credentials"
@@ -173,17 +175,25 @@ def view_companies():
     if session.get('role') != 'admin':
         return redirect('/')
 
+    search = request.args.get('search')
+
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM company")
-    companies = cursor.fetchall()
+    if search:
+        cursor.execute("""
+            SELECT * FROM company
+            WHERE name LIKE ?
+        """, (f'%{search}%',))
+    else:
+        cursor.execute("SELECT * FROM company")
 
+    companies = cursor.fetchall()
     conn.close()
 
     return render_template("admin/companies.html", companies=companies)
 
-@app.route('/admin/approve/<int:company_id>')
+@app.route('/admin/approve/<int:company_id>', methods=['POST'])
 def approve_company(company_id):
     if session.get('role') != 'admin':
         return redirect('/')
@@ -202,6 +212,164 @@ def approve_company(company_id):
 
     return redirect('/admin/companies')
 
+@app.route('/admin/reject/<int:company_id>', methods=['POST'])
+def reject_company(company_id):
+    if session.get('role') != 'admin':
+        return redirect('/')
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE company
+        SET approval_status = 'Rejected'
+        WHERE id = ?
+    """, (company_id,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/admin/companies')
+
+#Blacklisting companies and students
+@app.route('/admin/blacklist/company/<int:company_id>', methods=['POST'])
+def blacklist_company(company_id):
+    if session.get('role') != 'admin':
+        return redirect('/')
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE company
+        SET is_active = 0
+        WHERE id = ?
+    """, (company_id,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/admin/companies')
+
+@app.route('/admin/blacklist/student/<int:student_id>', methods=['POST'])
+def blacklist_student(student_id):
+    if session.get('role') != 'admin':
+        return redirect('/')
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE student
+        SET is_active = 0
+        WHERE id = ?
+    """, (student_id,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/admin/students')
+
+#Aproving or rejecting placement drive by admin
+@app.route('/admin/drives')
+def manage_drives():
+    if session.get('role') != 'admin':
+        return redirect('/')
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT placement_drive.*, company.name as company_name
+        FROM placement_drive
+        JOIN company ON placement_drive.company_id = company.id
+    """)
+
+    drives = cursor.fetchall()
+    conn.close()
+
+    return render_template("admin/drives.html", drives=drives)
+
+@app.route('/admin/approve-drive/<int:drive_id>')
+def approve_drive(drive_id):
+    if session.get('role') != 'admin':
+        return redirect('/')
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE placement_drive
+        SET status = 'Approved'
+        WHERE id = ?
+    """, (drive_id,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/admin/drives')
+
+@app.route('/admin/reject-drive/<int:drive_id>', methods=['POST'])
+def reject_drive(drive_id):
+    if session.get('role') != 'admin':
+        return redirect('/')
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE placement_drive
+        SET status = 'Rejected'
+        WHERE id = ?
+    """, (drive_id,))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/admin/drives')
+
+#Managing students
+@app.route('/admin/students')
+def manage_students():
+    if session.get('role') != 'admin':
+        return redirect('/')
+
+    search = request.args.get('search')
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    if search:
+        cursor.execute("""
+            SELECT * FROM student
+            WHERE name LIKE ?
+               OR phone LIKE ?
+               OR id LIKE ?
+        """, (f'%{search}%', f'%{search}%', f'%{search}%'))
+    else:
+        cursor.execute("SELECT * FROM student")
+
+    students = cursor.fetchall()
+    conn.close()
+
+    return render_template("admin/students.html", students=students)
+
+#Managing job applications
+@app.route('/admin/applications')
+def manage_applications():
+    if session.get('role') != 'admin':
+        return redirect('/')
+
+    conn = sqlite3.connect("placement_portal.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM application")
+
+    applications = cursor.fetchall()
+    conn.close()
+
+    return render_template("admin/applications.html", applications=applications)
 #Dashboards
 @app.route('/student/dashboard')
 def student_dashboard():
@@ -221,7 +389,43 @@ def company_dashboard():
 def admin_dashboard():
     if session.get('role') != 'admin':
         return redirect('/')
-    return render_template("admin/dashboard.html")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Students
+    cursor.execute("SELECT COUNT(*) FROM student WHERE is_active = 1")
+    total_students = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM student WHERE is_active = 0")
+    blacklisted_students = cursor.fetchone()[0]
+
+    # Companies
+    cursor.execute("SELECT COUNT(*) FROM company WHERE is_active = 1")
+    total_companies = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM company WHERE is_active = 0")
+    blacklisted_companies = cursor.fetchone()[0]
+
+    # Drives
+    cursor.execute("SELECT COUNT(*) FROM placement_drive")
+    total_drives = cursor.fetchone()[0]
+
+    # Applications
+    cursor.execute("SELECT COUNT(*) FROM application")
+    total_applications = cursor.fetchone()[0]
+
+    conn.close()
+
+    return render_template(
+        "admin/dashboard.html",
+        total_students=total_students,
+        blacklisted_students=blacklisted_students,
+        total_companies=total_companies,
+        blacklisted_companies=blacklisted_companies,
+        total_drives=total_drives,
+        total_applications=total_applications
+    )
 
 #Logout
 @app.route('/logout')

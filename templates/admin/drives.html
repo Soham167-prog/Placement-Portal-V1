@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Manage Placement Drives</h2>
+
+<table class="table table-bordered table-striped">
+    <thead class="table-dark">
+        <tr>
+            <th>ID</th>
+            <th>Company</th>
+            <th>Job Title</th>
+            <th>Deadline</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for drive in drives %}
+        <tr>
+            <td>{{ drive.id }}</td>
+            <td>{{ drive.company_name }}</td>
+            <td>{{ drive.job_title }}</td>
+            <td>{{ drive.deadline }}</td>
+            <td>{{ drive.status }}</td>
+            <td>
+
+                {% if drive.status == 'Pending' %}
+                <form action="/admin/approve-drive/{{ drive.id }}"
+                      method="POST"
+                      style="display:inline;">
+                    <button class="btn btn-success btn-sm">
+                        Approve
+                    </button>
+                </form>
+
+                <form action="/admin/reject-drive/{{ drive.id }}"
+                      method="POST"
+                      style="display:inline;">
+                    <button class="btn btn-danger btn-sm">
+                        Reject
+                    </button>
+                </form>
+                {% else %}
+                    —
+                {% endif %}
+
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="/admin/dashboard" class="btn btn-secondary mt-3">
+    Back to Dashboard
+</a>
+
+{% endblock %}

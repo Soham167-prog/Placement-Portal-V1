@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Manage Students</h2>
+
+<form method="GET" class="mb-3">
+    <input type="text"
+           name="search"
+           class="form-control"
+           placeholder="Search by Name or Phone">
+</form>
+
+<table class="table table-bordered table-striped">
+    <thead class="table-dark">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for student in students %}
+        <tr>
+            <td>{{ student.id }}</td>
+            <td>{{ student.name }}</td>
+            <td>{{ student.email }}</td>
+            <td>{{ student.phone }}</td>
+            <td>
+                {% if student.is_active == 1 %}
+                    Active
+                {% else %}
+                    Blacklisted
+                {% endif %}
+            </td>
+            <td>
+                {% if student.is_active == 1 %}
+                <form action="/admin/blacklist/student/{{ student.id }}"
+                      method="POST"
+                      style="display:inline;">
+                    <button type="submit"
+                            class="btn btn-dark btn-sm">
+                        Blacklist
+                    </button>
+                </form>
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="/admin/dashboard" class="btn btn-secondary mt-3">
+    Back to Dashboard
+</a>
+
+{% endblock %}

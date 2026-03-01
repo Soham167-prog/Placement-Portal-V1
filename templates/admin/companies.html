@@ -1,33 +1,87 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h3>Company Approval Panel</h3>
+<h2 class="mb-4">Manage Companies</h2>
 
-<table class="table table-bordered mt-4">
-    <tr>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Status</th>
-        <th>Action</th>
-    </tr>
+<form method="GET" class="mb-3">
+    <input type="text"
+           name="search"
+           class="form-control"
+           placeholder="Search by Company Name">
+</form>
 
-    {% for company in companies %}
-    <tr>
-        <td>{{ company.name }}</td>
-        <td>{{ company.email }}</td>
-        <td>{{ company.approval_status }}</td>
-        <td>
-            {% if company.approval_status != 'Approved' %}
-                <a href="/admin/approve/{{ company.id }}" 
-                   class="btn btn-success btn-sm">
-                   Approve
-                </a>
-            {% else %}
-                Approved
-            {% endif %}
-        </td>
-    </tr>
-    {% endfor %}
+<table class="table table-bordered table-striped">
+    <thead class="table-dark">
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Approval Status</th>
+            <th>Active Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for company in companies %}
+        <tr>
+            <td>{{ company.id }}</td>
+            <td>{{ company.name }}</td>
+            <td>{{ company.email }}</td>
+            <td>{{ company.approval_status }}</td>
+            <td>
+                {% if company.is_active == 1 %}
+                    Active
+                {% else %}
+                    Blacklisted
+                {% endif %}
+            </td>
+            <td>
+
+                <!-- APPROVE BUTTON -->
+                {% if company.approval_status == 'Pending' %}
+                <form action="/admin/approve/{{ company.id }}"
+                      method="POST"
+                      style="display:inline;">
+                    <button type="submit"
+                            class="btn btn-success btn-sm">
+                        Approve
+                    </button>
+                </form>
+                {% endif %}
+
+                <!-- REJECT BUTTON -->
+                {% if company.approval_status == 'Pending' %}
+                <form action="/admin/reject/{{ company.id }}"
+                      method="POST"
+                      style="display:inline;">
+                    <button type="submit"
+                            class="btn btn-danger btn-sm">
+                        Reject
+                    </button>
+                </form>
+                {% endif %}
+
+                <!-- BLACKLIST BUTTON -->
+                {% if company.is_active == 1 %}
+                <form action="/admin/blacklist/company/{{ company.id }}"
+                      method="POST"
+                      style="display:inline;">
+                    <button type="submit"
+                            class="btn btn-dark btn-sm">
+                        Blacklist
+                    </button>
+                </form>
+                {% endif %}
+
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
 </table>
+
+<a href="/admin/dashboard" class="btn btn-secondary mt-3">
+    Back to Dashboard
+</a>
 
 {% endblock %}
