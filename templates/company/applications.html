@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Applications</h2>
+
+<div class="card p-4">
+
+<table class="table table-bordered table-striped">
+
+<thead class="table-dark">
+<tr>
+<th>ID</th>
+<th>Student Name</th>
+<th>Email</th>
+<th>Resume</th>
+<th>Date</th>
+<th>Status</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% for app in applications %}
+<tr>
+
+<td>{{ app[0] }}</td>
+<td>{{ app[1] }}</td>
+<td>{{ app[2] }}</td>
+
+<td>
+<a href="{{ url_for('static', filename=app[3]) }}" 
+   target="_blank"
+   class="btn btn-sm btn-primary">
+View Resume
+</a>
+</td>
+
+<td>{{ app[4] }}</td>
+<td>{{ app[5] }}</td>
+
+<td>
+
+<a href="/company/update-application/{{ app[0] }}/Shortlisted"
+class="btn btn-warning btn-sm">
+Shortlist
+</a>
+
+<a href="/company/update-application/{{ app[0] }}/Selected"
+class="btn btn-success btn-sm">
+Select
+</a>
+
+<a href="/company/update-application/{{ app[0] }}/Rejected"
+class="btn btn-danger btn-sm">
+Reject
+</a>
+
+</td>
+
+</tr>
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
+{% endblock %}

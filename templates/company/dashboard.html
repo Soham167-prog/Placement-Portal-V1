@@ -1,7 +1,56 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>Company Dashboard</h2>
-<p>Welcome {{ session['username'] }}</p>
+<h2 class="mb-4">Company Dashboard</h2>
+
+<div class="card p-4 mb-4">
+    <a href="/company/post-job" class="btn btn-primary">Post New Job</a>
+</div>
+
+<div class="card p-4 mb-4">
+    <h5 class="mb-0">Total Applications Received: {{ total_applications }}</h5>
+</div>
+
+<div class="card p-4">
+
+<h4 class="mb-3">Your Job Posts</h4>
+
+<table class="table table-bordered table-striped">
+<thead class="table-dark">
+<tr>
+<th>Title</th>
+<th>Status</th>
+<th>Applications</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody>
+{% for job in jobs %}
+<tr>
+<td>{{ job.job_title }}</td>
+<td>{{ job.status }}</td>
+
+<td>
+<a href="/company/applications/{{ job.id }}" class="btn btn-sm btn-info">
+View
+</a>
+</td>
+
+<td>
+<a href="/company/update-job-status/{{ job.id }}/Active"
+class="btn btn-sm btn-success">Activate</a>
+
+<a href="/company/update-job-status/{{ job.id }}/Closed"
+class="btn btn-sm btn-danger">Close</a>
+</td>
+
+</tr>
+{% endfor %}
+</tbody>
+
+</table>
+
+</div>
 
 {% endblock %}

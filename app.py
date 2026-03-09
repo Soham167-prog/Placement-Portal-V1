@@ -134,6 +134,7 @@ def company_login():
         if company and check_password_hash(company['password'], password):
             session.clear()
             session['user_id'] = company['id']
+            session['company_id'] = company['id']
             session['role'] = 'company'
             session['username'] = company['name']
             return redirect('/company/dashboard')
@@ -290,7 +291,7 @@ def manage_drives():
 
     return render_template("admin/drives.html", drives=drives)
 
-@app.route('/admin/approve-drive/<int:drive_id>')
+@app.route('/admin/approve-drive/<int:drive_id>', methods=['POST'])
 def approve_drive(drive_id):
     if session.get('role') != 'admin':
         return redirect('/')
@@ -382,7 +383,23 @@ def student_dashboard():
 def company_dashboard():
     if session.get('role') != 'company':
         return redirect('/')
-    return render_template("company/dashboard.html")
+    company_id = session.get('company_id')
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM placement_drive WHERE company_id=?", (company_id,))
+    jobs = cursor.fetchall()
+
+    cursor.execute("""
+       SELECT COUNT(*) FROM application a 
+       JOIN placement_drive pd ON a.drive_id = pd.id
+       WHERE pd.company_id=?
+    """, (company_id,))
+    total_applications = cursor.fetchone()[0]
+
+    conn.close()
+    return render_template("company/dashboard.html", jobs=jobs, total_applications=total_applications)
 
 
 @app.route('/admin/dashboard')
@@ -426,6 +443,103 @@ def admin_dashboard():
         total_drives=total_drives,
         total_applications=total_applications
     )
+
+#Conpany Functions
+#Posting of new job positions
+@app.route('/company/post-job', methods=['GET','POST'])
+def post_job():
+    if session.get('role') != 'company':
+        return redirect('/')
+
+    if request.method == 'POST':
+        job_title = request.form['job_title']
+        job_description = request.form['job_description']
+        eligibility = request.form['eligibility']
+        deadline = request.form['deadline']
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO placement_drive
+            (company_id, job_title, job_description, eligibility, deadline, status, created_at)
+            VALUES (?, ?, ?, ?, ?, 'Pending', datetime('now'))
+        """, (session['user_id'], job_title, job_description, eligibility, deadline))
+
+        conn.commit()
+        conn.close()
+
+        return redirect('/company/dashboard')
+
+    return render_template("company/post_job.html")
+
+#Change Job Status
+@app.route('/company/update-job-status/<int:job_id>/<status>')
+def update_job_status(job_id, status):
+    if session.get('role') != 'company':
+        return redirect('/')
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE placement_drive
+        SET status=?
+        WHERE id=? AND company_id=?
+    """, (status, job_id, session['user_id']))
+    
+    conn.commit()
+    conn.close()
+
+    return redirect('/company/dashboard')
+
+#View applications for company jobs
+@app.route('/company/applications/<int:drive_id>')
+def company_applications(drive_id):
+
+    if session.get('role') != 'company':
+        return redirect('/')
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT 
+            a.id,
+            s.name,
+            s.email,
+            s.resume_path,
+            a.application_date,
+            a.status
+        FROM application a
+        JOIN student s ON a.student_id = s.id
+        WHERE a.drive_id = ?
+    """, (drive_id,))
+
+    applications = cursor.fetchall()
+    conn.close()
+
+    return render_template("company/applications.html", applications=applications)
+
+#Update Application Status
+@app.route('/company/update-application/<int:app_id>/<status>')
+def update_application_status(app_id, status):
+    if session.get('role') != 'company':
+        return redirect('/')
+    
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE application
+        SET status=?
+        WHERE id=?
+    """, (status, app_id))
+
+    conn.commit()
+    conn.close()
+
+    return redirect(request.referrer)
 
 #Logout
 @app.route('/logout')
