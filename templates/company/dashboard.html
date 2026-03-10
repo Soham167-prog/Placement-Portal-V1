@@ -38,11 +38,12 @@ View
 </td>
 
 <td>
-<a href="/company/update-job-status/{{ job.id }}/Active"
-class="btn btn-sm btn-success">Activate</a>
-
+{% if job.status == 'Approved' or job.status == 'Active' %}
 <a href="/company/update-job-status/{{ job.id }}/Closed"
 class="btn btn-sm btn-danger">Close</a>
+{% else %}
+—
+{% endif %}
 </td>
 
 </tr>

@@ -1,7 +1,60 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2>Student Dashboard</h2>
-<p>Welcome {{ session['username'] }}</p>
+<h2 class="mb-4">Student Dashboard</h2>
+<p class="mb-4">Welcome, {{ session.get('username') }}.</p>
+
+<div class="mb-4">
+    <a href="/student/applied-jobs" class="btn btn-outline-primary me-2">My Applied Jobs</a>
+    <a href="/student/notifications" class="btn btn-outline-success me-2">Notifications</a>
+    <a href="/student/upload-resume" class="btn btn-outline-secondary">Upload / Update Resume</a>
+</div>
+
+<form method="get" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="search" class="form-control" placeholder="Search by company name, job title, or eligibility" value="{{ search or '' }}">
+        <button class="btn btn-primary" type="submit">Search</button>
+    </div>
+</form>
+
+{% if request.args.get('msg') == 'already_applied' %}
+<div class="alert alert-info">You have already applied for this job.</div>
+{% endif %}
+
+<div class="card p-4">
+    <h4 class="mb-3">Placement Drives</h4>
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Company</th>
+                <th>Job Title</th>
+                <th>Eligibility</th>
+                <th>Deadline</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in drives %}
+            <tr>
+                <td>{{ d.company_name }}</td>
+                <td>{{ d.job_title }}</td>
+                <td>{{ d.eligibility or '—' }}</td>
+                <td>{{ d.deadline or '—' }}</td>
+                <td>
+                    {% if d.id in applied_ids %}
+                    <span class="text-muted">Applied</span>
+                    {% else %}
+                    <form action="/student/apply/{{ d.id }}" method="post" style="display:inline;">
+                        <button type="submit" class="btn btn-sm btn-success">Apply</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center">No approved drives found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
 {% endblock %}

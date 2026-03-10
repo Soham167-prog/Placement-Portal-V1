@@ -25,7 +25,7 @@
             <td>{{ drive.status }}</td>
             <td>
 
-                {% if drive.status == 'Pending' %}
+                {% if drive.status == 'Pending Approval' or drive.status == 'Pending' %}
                 <form action="/admin/approve-drive/{{ drive.id }}"
                       method="POST"
                       style="display:inline;">

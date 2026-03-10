@@ -29,11 +29,15 @@
 <td>{{ app[2] }}</td>
 
 <td>
-<a href="{{ url_for('static', filename=app[3]) }}" 
-   target="_blank"
-   class="btn btn-sm btn-primary">
+{% if app[3] %}
+<a class="btn btn-sm btn-primary"
+   href="{{ url_for('static', filename=app[3].replace('static/', '')) }}"
+   target="_blank">
 View Resume
 </a>
+{% else %}
+<span class="text-muted">—</span>
+{% endif %}
 </td>
 
 <td>{{ app[4] }}</td>

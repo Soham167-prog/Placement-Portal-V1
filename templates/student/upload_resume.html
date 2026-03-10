@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow p-4">
+            <h3 class="text-center mb-4">Upload / Update Resume</h3>
+            <p class="text-muted small">Only PDF files are allowed. Uploading will overwrite your previous resume.</p>
+            <form method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label">Resume (PDF only)</label>
+                    <input type="file" name="resume" class="form-control" accept=".pdf" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Upload</button>
+            </form>
+            <a href="/student/dashboard" class="btn btn-outline-secondary w-100 mt-2">Back to Dashboard</a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

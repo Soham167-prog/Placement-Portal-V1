@@ -1,11 +1,29 @@
 from flask import Flask, render_template, request, redirect, session, url_for
 from database import initialize_database, get_connection
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from datetime import datetime
 import sqlite3
+import os
 
 app = Flask(__name__)
 app.secret_key = "super_secret_key"
+RESUMES_FOLDER = os.path.join("static", "resumes")
+app.config["UPLOAD_FOLDER"] = RESUMES_FOLDER
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB
+
+def allowed_file(filename):
+    return filename and filename.lower().endswith(".pdf")
+
+def save_resume(file, prefix=""):
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    base = secure_filename(file.filename) or "resume"
+    if not base.lower().endswith(".pdf"):
+        base = base + ".pdf"
+    name = f"{prefix}_{datetime.now().strftime('%Y%m%d%H%M%S')}_{base}"
+    path = os.path.join(app.config["UPLOAD_FOLDER"], name)
+    file.save(path)
+    return path
 
 initialize_database()
 
@@ -18,34 +36,35 @@ def home():
 @app.route('/student/register', methods=['GET', 'POST'])
 def student_register():
     if request.method == 'POST':
-        name = request.form['name']
-        email = request.form['email']
-        password = request.form['password']
-        phone = request.form['phone']
-        resume_path = request.form['resume_path']
+        name = request.form.get('name')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        phone = request.form.get('phone', '')
         is_active = 1
         created_at = datetime.now()
+        resume_path = None
+        if 'resume' in request.files:
+            f = request.files['resume']
+            if f.filename:
+                if not allowed_file(f.filename):
+                    return "Only PDF files are allowed for resume."
+                resume_path = save_resume(f, prefix=email.replace("@", "_").replace(".", "_"))
 
         conn = get_connection()
         cursor = conn.cursor()
-
-        # Email uniqueness
         cursor.execute("SELECT * FROM student WHERE email = ?", (email,))
         if cursor.fetchone():
             conn.close()
             return "Email already exists"
 
         hashed_password = generate_password_hash(password)
-
         cursor.execute("""
             INSERT INTO student
             (name, email, password, phone, resume_path, is_active, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (name, email, hashed_password, phone, resume_path, is_active, created_at))
-
         conn.commit()
         conn.close()
-
         return redirect('/student/login')
 
     return render_template("student/register.html")
@@ -54,25 +73,25 @@ def student_register():
 @app.route('/student/login', methods=['GET', 'POST'])
 def student_login():
     if request.method == 'POST':
-        name = request.form['name']
-        password = request.form['password']
-
+        email = (request.form.get('email') or '').strip()
+        password = request.form.get('password') or ''
         conn = get_connection()
         cursor = conn.cursor()
-
-        cursor.execute("SELECT * FROM student WHERE name = ? AND is_active = 1", (name,))
+        cursor.execute("SELECT * FROM student WHERE email = ? AND is_active = 1", (email,))
         student = cursor.fetchone()
         conn.close()
-
         if student and check_password_hash(student['password'], password):
             session.clear()
             session['user_id'] = student['id']
             session['role'] = 'student'
             session['username'] = student['name']
             return redirect('/student/dashboard')
-
+        # Debug on failed login
+        print("[Student login] email entered:", repr(email))
+        print("[Student login] user found:", student is not None)
+        if student:
+            print("[Student login] password check:", check_password_hash(student['password'], password))
         return "Invalid Student Credentials"
-
     return render_template("student/login.html")
 
 #Company register
@@ -320,7 +339,7 @@ def reject_drive(drive_id):
 
     cursor.execute("""
         UPDATE placement_drive
-        SET status = 'Rejected'
+        SET status = 'Closed'
         WHERE id = ?
     """, (drive_id,))
 
@@ -375,8 +394,23 @@ def manage_applications():
 @app.route('/student/dashboard')
 def student_dashboard():
     if session.get('role') != 'student':
-        return redirect('/')
-    return render_template("student/dashboard.html")
+        return redirect('/student/login')
+    search = request.args.get('search', '').strip()
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT pd.id, pd.job_title, pd.job_description, pd.eligibility, pd.deadline, pd.status, c.name as company_name
+        FROM placement_drive pd
+        JOIN company c ON pd.company_id = c.id
+        WHERE pd.status IN ('Approved', 'Active')
+    """)
+    drives = cursor.fetchall()
+    cursor.execute("SELECT drive_id FROM application WHERE student_id = ?", (session['user_id'],))
+    applied_ids = {row['drive_id'] for row in cursor.fetchall()}
+    conn.close()
+    if search:
+        drives = [d for d in drives if (search.lower() in (d['company_name'] or '').lower() or search.lower() in (d['job_title'] or '').lower() or search.lower() in (d['eligibility'] or '').lower())]
+    return render_template("student/dashboard.html", drives=drives, search=search, applied_ids=applied_ids)
 
 
 @app.route('/company/dashboard')
@@ -463,7 +497,7 @@ def post_job():
         cursor.execute("""
             INSERT INTO placement_drive
             (company_id, job_title, job_description, eligibility, deadline, status, created_at)
-            VALUES (?, ?, ?, ?, ?, 'Pending', datetime('now'))
+            VALUES (?, ?, ?, ?, ?, 'Pending Approval', datetime('now'))
         """, (session['user_id'], job_title, job_description, eligibility, deadline))
 
         conn.commit()
@@ -478,6 +512,8 @@ def post_job():
 def update_job_status(job_id, status):
     if session.get('role') != 'company':
         return redirect('/')
+    if status != 'Closed':
+        return redirect('/company/dashboard')
     
     conn = get_connection()
     cursor = conn.cursor()
@@ -546,6 +582,90 @@ def update_application_status(app_id, status):
 def logout():
     session.clear()
     return redirect('/')
+
+
+# --- Student: apply, applied jobs, upload resume ---
+@app.route('/student/apply/<int:drive_id>', methods=['POST'])
+def student_apply(drive_id):
+    if session.get('role') != 'student':
+        return redirect('/student/login')
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM placement_drive WHERE id = ? AND status IN ('Approved', 'Active')", (drive_id,))
+    if not cursor.fetchone():
+        conn.close()
+        return "Drive not found or not approved.", 404
+    try:
+        cursor.execute("""
+            INSERT INTO application (student_id, drive_id, application_date, status)
+            VALUES (?, ?, ?, 'Applied')
+        """, (session['user_id'], drive_id, datetime.now().isoformat()))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return redirect(url_for('student_dashboard') + "?msg=already_applied")
+    conn.close()
+    return redirect('/student/dashboard')
+
+@app.route('/student/applied-jobs')
+def student_applied_jobs():
+    if session.get('role') != 'student':
+        return redirect('/student/login')
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT a.id, a.application_date, a.status, pd.job_title, pd.id as drive_id, c.name as company_name
+        FROM application a
+        JOIN placement_drive pd ON a.drive_id = pd.id
+        JOIN company c ON pd.company_id = c.id
+        WHERE a.student_id = ?
+        ORDER BY a.application_date DESC
+    """, (session['user_id'],))
+    applications = cursor.fetchall()
+    conn.close()
+    return render_template("student/applied_jobs.html", applications=applications)
+
+@app.route('/student/upload-resume', methods=['GET', 'POST'])
+def student_upload_resume():
+    if session.get('role') != 'student':
+        return redirect('/student/login')
+    if request.method == 'POST':
+        if 'resume' not in request.files:
+            return redirect(request.url)
+        f = request.files['resume']
+        if not f.filename:
+            return redirect(request.url)
+        if not allowed_file(f.filename):
+            return "Only PDF files are allowed."
+        path = save_resume(f, prefix=f"student_{session['user_id']}")
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE student SET resume_path = ? WHERE id = ?", (path, session['user_id']))
+        conn.commit()
+        conn.close()
+        return redirect('/student/dashboard')
+    return render_template("student/upload_resume.html")
+
+@app.route('/student/notifications')
+def student_notifications():
+    if session.get('role') != 'student':
+        return redirect('/student/login')
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT a.status, pd.job_title, c.name
+        FROM application a
+        JOIN placement_drive pd ON a.drive_id = pd.id
+        JOIN company c ON pd.company_id = c.id
+        WHERE a.student_id = ?
+          AND a.status IN ('Shortlisted', 'Selected', 'Rejected')
+        ORDER BY a.application_date DESC
+    """, (session['user_id'],))
+    notifications = cursor.fetchall()
+    conn.close()
+
+    return render_template("student/notifications.html", notifications=notifications)
 
 
 if __name__ == "__main__":

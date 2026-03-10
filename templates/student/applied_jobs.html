@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">My Applied Jobs</h2>
+
+<div class="card p-4">
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Company</th>
+                <th>Job Title</th>
+                <th>Application Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in applications %}
+            <tr>
+                <td>{{ a.company_name }}</td>
+                <td>{{ a.job_title }}</td>
+                <td>{{ a.application_date }}</td>
+                <td>
+                    <span class="badge
+                        {% if a.status == 'Selected' %}bg-success
+                        {% elif a.status == 'Shortlisted' %}bg-warning text-dark
+                        {% elif a.status == 'Rejected' %}bg-danger
+                        {% else %}bg-secondary{% endif %}">
+                        {{ a.status }}
+                    </span>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center">You have not applied to any jobs yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<a href="/student/dashboard" class="btn btn-secondary mt-3">Back to Dashboard</a>
+
+{% endblock %}

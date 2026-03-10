@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Notifications</h2>
+
+<div class="card p-4">
+    <ul class="list-group">
+        {% for n in notifications %}
+        <li class="list-group-item">
+            You have been <strong>{{ n[0] }}</strong> for <strong>{{ n[1] }}</strong> at <strong>{{ n[2] }}</strong>
+        </li>
+        {% else %}
+        <li class="list-group-item text-center text-muted">No notifications yet.</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<a href="/student/dashboard" class="btn btn-secondary mt-3">Back to Dashboard</a>
+
+{% endblock %}
