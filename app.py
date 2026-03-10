@@ -380,12 +380,22 @@ def manage_applications():
     if session.get('role') != 'admin':
         return redirect('/')
 
-    conn = sqlite3.connect("placement_portal.db")
-    conn.row_factory = sqlite3.Row
+    conn = get_connection()
     cursor = conn.cursor()
-
-    cursor.execute("SELECT * FROM application")
-
+    cursor.execute("""
+        SELECT 
+            a.id,
+            s.name AS student_name,
+            c.name AS company_name,
+            pd.job_title,
+            a.status,
+            a.application_date
+        FROM application a
+        JOIN student s ON a.student_id = s.id
+        JOIN placement_drive pd ON a.drive_id = pd.id
+        JOIN company c ON pd.company_id = c.id
+        ORDER BY a.application_date DESC
+    """)
     applications = cursor.fetchall()
     conn.close()
 
@@ -466,6 +476,10 @@ def admin_dashboard():
     cursor.execute("SELECT COUNT(*) FROM application")
     total_applications = cursor.fetchone()[0]
 
+    # Placed students (from job_position)
+    cursor.execute("SELECT COUNT(*) FROM job_position")
+    placed_students = cursor.fetchone()[0]
+
     conn.close()
 
     return render_template(
@@ -475,7 +489,8 @@ def admin_dashboard():
         total_companies=total_companies,
         blacklisted_companies=blacklisted_companies,
         total_drives=total_drives,
-        total_applications=total_applications
+        total_applications=total_applications,
+        placed_students=placed_students
     )
 
 #Conpany Functions
@@ -493,6 +508,17 @@ def post_job():
 
         conn = get_connection()
         cursor = conn.cursor()
+
+        # Prevent duplicate active/approved drives for same role
+        cursor.execute("""
+            SELECT id FROM placement_drive
+            WHERE company_id = ?
+              AND job_title = ?
+              AND status IN ('Approved', 'Active')
+        """, (session['user_id'], job_title))
+        if cursor.fetchone():
+            conn.close()
+            return "An active placement drive for this role already exists. Please close the current drive before creating another."
 
         cursor.execute("""
             INSERT INTO placement_drive
@@ -529,7 +555,27 @@ def update_job_status(job_id, status):
 
     return redirect('/company/dashboard')
 
+@app.route('/company/applicants')
+def company_applicants_index():
+    if session.get('role') != 'company':
+        return redirect('/')
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id
+        FROM placement_drive
+        WHERE company_id = ?
+        ORDER BY created_at DESC
+    """, (session['user_id'],))
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return "No placement drives found. Post a drive first from your dashboard."
+    return redirect(f"/company/applicants/{row['id']}")
+
+
 #View applications for company jobs
+@app.route('/company/applicants/<int:drive_id>')
 @app.route('/company/applications/<int:drive_id>')
 def company_applications(drive_id):
 
@@ -546,7 +592,8 @@ def company_applications(drive_id):
             s.email,
             s.resume_path,
             a.application_date,
-            a.status
+            a.status,
+            s.id AS student_id
         FROM application a
         JOIN student s ON a.student_id = s.id
         WHERE a.drive_id = ?
@@ -555,14 +602,17 @@ def company_applications(drive_id):
     applications = cursor.fetchall()
     conn.close()
 
-    return render_template("company/applications.html", applications=applications)
+    return render_template("company/applicants.html", applications=applications, drive_id=drive_id)
 
 #Update Application Status
 @app.route('/company/update-application/<int:app_id>/<status>')
 def update_application_status(app_id, status):
     if session.get('role') != 'company':
         return redirect('/')
-    
+
+    if status == 'Selected':
+        return redirect(url_for('company_offer', app_id=app_id))
+
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -666,6 +716,176 @@ def student_notifications():
     conn.close()
 
     return render_template("student/notifications.html", notifications=notifications)
+
+
+# --- Shared helpers and role-specific student profile routes ---
+def _load_student_profile(student_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM student WHERE id = ?", (student_id,))
+    student = cursor.fetchone()
+    if not student:
+        conn.close()
+        return None, None, None
+
+    cursor.execute("""
+        SELECT 
+            a.application_date,
+            a.status,
+            pd.job_title,
+            c.name AS company_name
+        FROM application a
+        JOIN placement_drive pd ON a.drive_id = pd.id
+        JOIN company c ON pd.company_id = c.id
+        WHERE a.student_id = ?
+        ORDER BY a.application_date DESC
+    """, (student_id,))
+    applications = cursor.fetchall()
+
+    cursor.execute("""
+        SELECT 
+            jp.title,
+            jp.description,
+            jp.employment_type,
+            jp.offered_salary,
+            jp.offered_at,
+            c.name AS company_name
+        FROM job_position jp
+        JOIN company c ON jp.company_id = c.id
+        WHERE jp.student_id = ?
+        ORDER BY jp.offered_at DESC
+    """, (student_id,))
+    placements = cursor.fetchall()
+
+    conn.close()
+    return student, applications, placements
+
+
+@app.route('/student/profile')
+def student_profile_self():
+    if session.get('role') != 'student':
+        return redirect('/student/login')
+    student_id = session.get('user_id')
+    student, applications, placements = _load_student_profile(student_id)
+    if not student:
+        return "Student not found", 404
+    return render_template("student/profile.html",
+                           student=student,
+                           applications=applications,
+                           placements=placements)
+
+
+@app.route('/admin/student-profile/<int:student_id>')
+def admin_student_profile(student_id):
+    if session.get('role') != 'admin':
+        return redirect('/')
+    student, applications, placements = _load_student_profile(student_id)
+    if not student:
+        return "Student not found", 404
+    return render_template("admin/student_profile.html",
+                           student=student,
+                           applications=applications,
+                           placements=placements)
+
+
+@app.route('/company/student-profile/<int:student_id>')
+def company_student_profile(student_id):
+    if session.get('role') != 'company':
+        return redirect('/')
+    student, applications, placements = _load_student_profile(student_id)
+    if not student:
+        return "Student not found", 404
+    source = request.args.get('from') or ''
+    drive_id = request.args.get('drive_id')
+    return render_template("company/student_profile.html",
+                           student=student,
+                           applications=applications,
+                           placements=placements,
+                           source=source,
+                           drive_id=drive_id)
+
+
+@app.route('/company/students')
+def company_students():
+    if session.get('role') != 'company':
+        return redirect('/')
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM student")
+    students = cursor.fetchall()
+    conn.close()
+
+    return render_template("company/students.html", students=students)
+
+
+@app.route('/company/offer/<int:app_id>', methods=['GET', 'POST'])
+def company_offer(app_id):
+    if session.get('role') != 'company':
+        return redirect('/')
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT 
+            a.id,
+            a.student_id,
+            a.drive_id,
+            s.name AS student_name,
+            pd.job_title,
+            pd.job_description,
+            pd.company_id
+        FROM application a
+        JOIN student s ON a.student_id = s.id
+        JOIN placement_drive pd ON a.drive_id = pd.id
+        WHERE a.id = ?
+    """, (app_id,))
+    app_row = cursor.fetchone()
+
+    if not app_row:
+        conn.close()
+        return "Application not found", 404
+
+    if request.method == 'POST':
+        title = request.form.get('title') or app_row['job_title']
+        description = request.form.get('description') or app_row['job_description']
+        employment_type = request.form.get('employment_type') or 'Full Time'
+        offered_salary = request.form.get('offered_salary')
+
+        # Avoid duplicate job_position for same student/drive/company
+        cursor.execute("""
+            SELECT id FROM job_position
+            WHERE student_id = ? AND placement_drive_id = ? AND company_id = ?
+        """, (app_row['student_id'], app_row['drive_id'], app_row['company_id']))
+        exists = cursor.fetchone()
+
+        cursor.execute(
+            "UPDATE application SET status = 'Selected' WHERE id = ?",
+            (app_id,)
+        )
+
+        if not exists:
+            cursor.execute("""
+                INSERT INTO job_position
+                (student_id, company_id, placement_drive_id, title, description, employment_type, offered_salary)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                app_row['student_id'],
+                app_row['company_id'],
+                app_row['drive_id'],
+                title,
+                description,
+                employment_type,
+                offered_salary
+            ))
+
+        conn.commit()
+        conn.close()
+        return redirect(f"/company/applications/{app_row['drive_id']}")
+
+    conn.close()
+    return render_template("company/offer_form.html", app=app_row)
 
 
 if __name__ == "__main__":

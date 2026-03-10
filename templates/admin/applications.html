@@ -1,16 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
 
-<h2 class="mb-4">Manage Job Applications</h2>
+<h2 class="mb-4">Job Applications</h2>
 
 <table class="table table-bordered table-striped">
     <thead class="table-dark">
         <tr>
-            <th>Application ID</th>
-            <th>Student ID</th>
-            <th>Drive ID</th>
-            <th>Application Date</th>
+            <th>ID</th>
+            <th>Student</th>
+            <th>Company</th>
+            <th>Job Title</th>
             <th>Status</th>
+            <th>Applied Date</th>
         </tr>
     </thead>
 
@@ -18,10 +19,11 @@
         {% for app in applications %}
         <tr>
             <td>{{ app.id }}</td>
-            <td>{{ app.student_id }}</td>
-            <td>{{ app.drive_id }}</td>
-            <td>{{ app.application_date }}</td>
+            <td>{{ app.student_name }}</td>
+            <td>{{ app.company_name }}</td>
+            <td>{{ app.job_title }}</td>
             <td>{{ app.status }}</td>
+            <td>{{ app.application_date }}</td>
         </tr>
         {% endfor %}
     </tbody>

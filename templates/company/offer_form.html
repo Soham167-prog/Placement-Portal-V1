@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Create Job Offer</h2>
+
+<div class="card p-4">
+    <p><strong>Student:</strong> {{ app.student_name }}</p>
+    <p><strong>Role:</strong> {{ app.job_title }}</p>
+
+    <form method="POST">
+        <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" name="title" class="form-control" value="{{ app.job_title }}">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" rows="3">{{ app.job_description }}</textarea>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Employment Type</label>
+            <input type="text" name="employment_type" class="form-control" value="Full Time">
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Offered Salary</label>
+            <input type="number" name="offered_salary" class="form-control" min="0">
+        </div>
+
+        <button type="submit" class="btn btn-success w-100">Save Offer</button>
+    </form>
+</div>
+
+<a href="/company/dashboard" class="btn btn-secondary mt-3">Back to Dashboard</a>
+
+{% endblock %}
+

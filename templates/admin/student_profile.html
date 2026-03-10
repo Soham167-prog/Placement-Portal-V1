@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Student Profile (Admin)</h2>
+
+<div class="card mb-4 p-4">
+    <h4 class="mb-3">{{ student.name }}</h4>
+    <p><strong>Email:</strong> {{ student.email }}</p>
+    <p><strong>Phone:</strong> {{ student.phone or '—' }}</p>
+    <p><strong>Joined:</strong> {{ student.created_at or '—' }}</p>
+    <p>
+        <strong>Status:</strong>
+        {% if student.is_active == 1 %}Active{% else %}Blacklisted{% endif %}
+    </p>
+    <p>
+        <strong>Resume:</strong>
+        {% if student.resume_path %}
+        <a class="btn btn-sm btn-primary"
+           href="{{ url_for('static', filename=student.resume_path.replace('static/', '')) }}"
+           target="_blank">
+            View Resume
+        </a>
+        {% else %}
+        <span class="text-muted">No resume uploaded</span>
+        {% endif %}
+    </p>
+</div>
+
+<div class="card mb-4 p-4">
+    <h4 class="mb-3">Application History</h4>
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Company</th>
+                <th>Job Title</th>
+                <th>Status</th>
+                <th>Applied Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for a in applications %}
+            <tr>
+                <td>{{ a.company_name }}</td>
+                <td>{{ a.job_title }}</td>
+                <td>{{ a.status }}</td>
+                <td>{{ a.application_date }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-center">No applications yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="card mb-4 p-4">
+    <h4 class="mb-3">Placement Status</h4>
+    {% if placements %}
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Company</th>
+                <th>Role</th>
+                <th>Employment Type</th>
+                <th>Salary</th>
+                <th>Offer Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in placements %}
+            <tr>
+                <td>{{ p.company_name }}</td>
+                <td>{{ p.title }}</td>
+                <td>{{ p.employment_type }}</td>
+                <td>{{ p.offered_salary or '—' }}</td>
+                <td>{{ p.offered_at }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted mb-0">No placement records found for this student.</p>
+    {% endif %}
+</div>
+
+<a href="/admin/students" class="btn btn-secondary">Back to Students</a>
+
+{% endblock %}
+

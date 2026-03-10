@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Applicants</h2>
+
+<div class="card p-4">
+
+<table class="table table-bordered table-striped">
+
+<thead class="table-dark">
+<tr>
+    <th>ID</th>
+    <th>Student Name</th>
+    <th>Email</th>
+    <th>Resume</th>
+    <th>Date</th>
+    <th>Status</th>
+    <th>Actions</th>
+</tr>
+</thead>
+
+<tbody>
+{% for app in applications %}
+<tr>
+    <td>{{ app[0] }}</td>
+    <td>{{ app[1] }}</td>
+    <td>{{ app[2] }}</td>
+    <td>
+        {% if app[3] %}
+        <a class="btn btn-sm btn-primary"
+           href="{{ url_for('static', filename=app[3].replace('static/', '')) }}"
+           target="_blank">
+            View Resume
+        </a>
+        {% else %}
+        <span class="text-muted">—</span>
+        {% endif %}
+    </td>
+    <td>{{ app[4] }}</td>
+    <td>{{ app[5] }}</td>
+    <td>
+        <a href="/company/update-application/{{ app[0] }}/Shortlisted"
+           class="btn btn-warning btn-sm">
+            Shortlist
+        </a>
+        <a href="/company/update-application/{{ app[0] }}/Selected"
+           class="btn btn-success btn-sm">
+            Select / Offer
+        </a>
+        <a href="/company/update-application/{{ app[0] }}/Rejected"
+           class="btn btn-danger btn-sm">
+            Reject
+        </a>
+        <a href="/company/student-profile/{{ app[6] }}?from=applicants&drive_id={{ drive_id }}"
+           class="btn btn-outline-primary btn-sm">
+            View Profile
+        </a>
+    </td>
+</tr>
+{% else %}
+<tr><td colspan="7" class="text-center">No applications for this drive yet.</td></tr>
+{% endfor %}
+</tbody>
+
+</table>
+</div>
+
+<a href="/company/dashboard" class="btn btn-secondary mt-3">Back to Dashboard</a>
+
+{% endblock %}
+

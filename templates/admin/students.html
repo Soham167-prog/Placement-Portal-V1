@@ -17,8 +17,11 @@
             <th>Name</th>
             <th>Email</th>
             <th>Phone</th>
+            <th>Resume</th>
+            <th>Joined</th>
             <th>Status</th>
-            <th>Action</th>
+            <th>Actions</th>
+            <th>View Profile</th>
         </tr>
     </thead>
 
@@ -29,6 +32,18 @@
             <td>{{ student.name }}</td>
             <td>{{ student.email }}</td>
             <td>{{ student.phone }}</td>
+            <td>
+                {% if student.resume_path %}
+                <a class="btn btn-sm btn-primary"
+                   href="{{ url_for('static', filename=student.resume_path.replace('static/', '')) }}"
+                   target="_blank">
+                    View Resume
+                </a>
+                {% else %}
+                <span class="text-muted">—</span>
+                {% endif %}
+            </td>
+            <td>{{ student.created_at }}</td>
             <td>
                 {% if student.is_active == 1 %}
                     Active
@@ -49,6 +64,11 @@
                 {% else %}
                     —
                 {% endif %}
+            </td>
+            <td>
+                <a href="/admin/student-profile/{{ student.id }}" class="btn btn-sm btn-outline-primary">
+                    View Profile
+                </a>
             </td>
         </tr>
         {% endfor %}

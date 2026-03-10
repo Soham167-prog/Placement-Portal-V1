@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h2 class="mb-4">Students</h2>
+
+<div class="card p-4">
+    <table class="table table-bordered table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Resume</th>
+                <th>Joined</th>
+                <th>Status</th>
+                <th>View Profile</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in students %}
+            <tr>
+                <td>{{ s.name }}</td>
+                <td>{{ s.email }}</td>
+                <td>{{ s.phone or '—' }}</td>
+                <td>
+                    {% if s.resume_path %}
+                    <a class="btn btn-sm btn-primary"
+                       href="{{ url_for('static', filename=s.resume_path.replace('static/', '')) }}"
+                       target="_blank">
+                        View Resume
+                    </a>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>{{ s.created_at or '—' }}</td>
+                <td>
+                    {% if s.is_active == 1 %}Active{% else %}Blacklisted{% endif %}
+                </td>
+                <td>
+                    <a href="/company/student-profile/{{ s.id }}?from=students" class="btn btn-sm btn-outline-primary">
+                        View Profile
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center">No students found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<a href="/company/dashboard" class="btn btn-secondary mt-3">Back to Dashboard</a>
+
+{% endblock %}
+
