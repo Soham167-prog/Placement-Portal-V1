@@ -1,3 +1,4 @@
+# Imports
 from flask import Flask, render_template, request, redirect, session, url_for
 from database import initialize_database, get_connection
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -6,12 +7,17 @@ from datetime import datetime
 import sqlite3
 import os
 
+
+# App Configuration
 app = Flask(__name__)
 app.secret_key = "super_secret_key"
 RESUMES_FOLDER = os.path.join("static", "resumes")
 app.config["UPLOAD_FOLDER"] = RESUMES_FOLDER
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16MB
 
+
+# Utility Functions
+# Resume File Handling
 def allowed_file(filename):
     return filename and filename.lower().endswith(".pdf")
 
@@ -25,6 +31,8 @@ def save_resume(file, prefix=""):
     file.save(path)
     return path
 
+
+#Database Initialization
 initialize_database()
 
 #Home page
@@ -32,6 +40,8 @@ initialize_database()
 def home():
     return render_template("home.html")
 
+
+# Student Authenticationr
 #Student register
 @app.route('/student/register', methods=['GET', 'POST'])
 def student_register():
@@ -69,6 +79,7 @@ def student_register():
 
     return render_template("student/register.html")
 
+
 #Student login
 @app.route('/student/login', methods=['GET', 'POST'])
 def student_login():
@@ -94,6 +105,8 @@ def student_login():
         return "Invalid Student Credentials"
     return render_template("student/login.html")
 
+
+#Company Authentication
 #Company register
 @app.route('/company/register', methods=['GET', 'POST'])
 def company_register():
@@ -162,6 +175,8 @@ def company_login():
 
     return render_template("company/login.html")
 
+
+#Admin Authentication
 #Admin login
 @app.route('/admin-login', methods=['GET', 'POST'])
 def admin_login():
@@ -189,6 +204,10 @@ def admin_login():
 
     return render_template("admin/login.html")
 
+
+# Admin Management
+
+#Manage Companies
 #Admin granting permissions to the company
 @app.route('/admin/companies')
 def view_companies():
@@ -213,6 +232,8 @@ def view_companies():
 
     return render_template("admin/companies.html", companies=companies)
 
+
+#Approve or Reject Companies
 @app.route('/admin/approve/<int:company_id>', methods=['POST'])
 def approve_company(company_id):
     if session.get('role') != 'admin':
@@ -250,6 +271,7 @@ def reject_company(company_id):
     conn.close()
 
     return redirect('/admin/companies')
+
 
 #Blacklisting companies and students
 @app.route('/admin/blacklist/company/<int:company_id>', methods=['POST'])
@@ -290,6 +312,8 @@ def blacklist_student(student_id):
 
     return redirect('/admin/students')
 
+
+#Manage Placement Drives
 #Aproving or rejecting placement drive by admin
 @app.route('/admin/drives')
 def manage_drives():
@@ -348,6 +372,7 @@ def reject_drive(drive_id):
 
     return redirect('/admin/drives')
 
+
 #Managing students
 @app.route('/admin/students')
 def manage_students():
@@ -400,7 +425,10 @@ def manage_applications():
     conn.close()
 
     return render_template("admin/applications.html", applications=applications)
+
+
 #Dashboards
+#Student Dashboard
 @app.route('/student/dashboard')
 def student_dashboard():
     if session.get('role') != 'student':
@@ -423,6 +451,7 @@ def student_dashboard():
     return render_template("student/dashboard.html", drives=drives, search=search, applied_ids=applied_ids)
 
 
+#Company Dashboard
 @app.route('/company/dashboard')
 def company_dashboard():
     if session.get('role') != 'company':
@@ -446,6 +475,7 @@ def company_dashboard():
     return render_template("company/dashboard.html", jobs=jobs, total_applications=total_applications)
 
 
+#Admin Dashboard
 @app.route('/admin/dashboard')
 def admin_dashboard():
     if session.get('role') != 'admin':
@@ -476,7 +506,7 @@ def admin_dashboard():
     cursor.execute("SELECT COUNT(*) FROM application")
     total_applications = cursor.fetchone()[0]
 
-    # Placed students (from job_position)
+    # Placed students (taken from job_position)
     cursor.execute("SELECT COUNT(*) FROM job_position")
     placed_students = cursor.fetchone()[0]
 
@@ -492,6 +522,7 @@ def admin_dashboard():
         total_applications=total_applications,
         placed_students=placed_students
     )
+
 
 #Conpany Functions
 #Posting of new job positions
@@ -533,7 +564,8 @@ def post_job():
 
     return render_template("company/post_job.html")
 
-#Change Job Status
+
+#Change Placement Drive Status
 @app.route('/company/update-job-status/<int:job_id>/<status>')
 def update_job_status(job_id, status):
     if session.get('role') != 'company':
@@ -555,6 +587,7 @@ def update_job_status(job_id, status):
 
     return redirect('/company/dashboard')
 
+#View Applicants
 @app.route('/company/applicants')
 def company_applicants_index():
     if session.get('role') != 'company':
@@ -627,14 +660,8 @@ def update_application_status(app_id, status):
 
     return redirect(request.referrer)
 
-#Logout
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect('/')
-
-
-# --- Student: apply, applied jobs, upload resume ---
+#Student Features
+#Apply to Job
 @app.route('/student/apply/<int:drive_id>', methods=['POST'])
 def student_apply(drive_id):
     if session.get('role') != 'student':
@@ -657,6 +684,7 @@ def student_apply(drive_id):
     conn.close()
     return redirect('/student/dashboard')
 
+#View Applied Jobs
 @app.route('/student/applied-jobs')
 def student_applied_jobs():
     if session.get('role') != 'student':
@@ -675,6 +703,8 @@ def student_applied_jobs():
     conn.close()
     return render_template("student/applied_jobs.html", applications=applications)
 
+
+#Upload Resume
 @app.route('/student/upload-resume', methods=['GET', 'POST'])
 def student_upload_resume():
     if session.get('role') != 'student':
@@ -696,6 +726,8 @@ def student_upload_resume():
         return redirect('/student/dashboard')
     return render_template("student/upload_resume.html")
 
+
+#Notifications
 @app.route('/student/notifications')
 def student_notifications():
     if session.get('role') != 'student':
@@ -718,7 +750,8 @@ def student_notifications():
     return render_template("student/notifications.html", notifications=notifications)
 
 
-# --- Shared helpers and role-specific student profile routes ---
+#Profile System
+#Shared Profile Loader
 def _load_student_profile(student_id):
     conn = get_connection()
     cursor = conn.cursor()
@@ -762,6 +795,7 @@ def _load_student_profile(student_id):
     return student, applications, placements
 
 
+#Student Self Profile
 @app.route('/student/profile')
 def student_profile_self():
     if session.get('role') != 'student':
@@ -776,6 +810,7 @@ def student_profile_self():
                            placements=placements)
 
 
+#Admin Viewing Student Profile
 @app.route('/admin/student-profile/<int:student_id>')
 def admin_student_profile(student_id):
     if session.get('role') != 'admin':
@@ -789,6 +824,7 @@ def admin_student_profile(student_id):
                            placements=placements)
 
 
+#Company Viewing Student Profile
 @app.route('/company/student-profile/<int:student_id>')
 def company_student_profile(student_id):
     if session.get('role') != 'company':
@@ -806,6 +842,7 @@ def company_student_profile(student_id):
                            drive_id=drive_id)
 
 
+#Company View All Students
 @app.route('/company/students')
 def company_students():
     if session.get('role') != 'company':
@@ -820,6 +857,7 @@ def company_students():
     return render_template("company/students.html", students=students)
 
 
+#Offer Job to Student
 @app.route('/company/offer/<int:app_id>', methods=['GET', 'POST'])
 def company_offer(app_id):
     if session.get('role') != 'company':
@@ -853,7 +891,7 @@ def company_offer(app_id):
         employment_type = request.form.get('employment_type') or 'Full Time'
         offered_salary = request.form.get('offered_salary')
 
-        # Avoid duplicate job_position for same student/drive/company
+        #Avoid duplicate job_position for same student/drive/company
         cursor.execute("""
             SELECT id FROM job_position
             WHERE student_id = ? AND placement_drive_id = ? AND company_id = ?
@@ -887,6 +925,12 @@ def company_offer(app_id):
     conn.close()
     return render_template("company/offer_form.html", app=app_row)
 
+#Logout
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/')
 
+#Application Entry Point
 if __name__ == "__main__":
     app.run(debug=True)
