@@ -2,8 +2,6 @@
 
 ## Author
 **Name:** Soham Narayankhedkar  
-**Roll Number:** 24f2003116
-**Email:** 24f2003116@ds.study.iitm.ac.in
 
 ## Project Description
 This project is a **Placement Portal Web Application** developed using Flask.  
